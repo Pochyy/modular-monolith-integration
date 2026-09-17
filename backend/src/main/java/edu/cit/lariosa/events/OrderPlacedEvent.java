@@ -27,3 +27,4 @@ public class OrderPlacedEvent {
         public int getQuantity() { return quantity; }
     }
 }
+

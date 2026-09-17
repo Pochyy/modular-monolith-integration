@@ -38,7 +38,6 @@ class InventoryServiceImpl implements InventoryService {
         if (product.getStock() >= quantity) {
             product.setStock(product.getStock() - quantity);
             inventoryRepository.save(product);
-            // Publish low-stock event if below threshold
             if (product.getStock() < lowStockThreshold && product.getStock() >= 0) {
                 eventPublisher.publishEvent(
                     new LowStockEvent(product.getProductId(), product.getName(), product.getStock())

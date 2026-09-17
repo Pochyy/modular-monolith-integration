@@ -47,3 +47,4 @@ public class NotificationService {
         return notificationRepository.findAllByOrderByCreatedAtDesc();
     }
 }
+

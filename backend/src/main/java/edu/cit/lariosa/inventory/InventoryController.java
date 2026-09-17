@@ -21,3 +21,4 @@ public class InventoryController {
         return inventoryService.getAllItems();
     }
 }
+

@@ -21,3 +21,4 @@ public class NotificationController {
         return notificationService.getAllNotifications();
     }
 }
+

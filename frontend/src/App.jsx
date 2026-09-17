@@ -163,6 +163,7 @@ function App() {
               </>
             )}
           </select>
+          <label>Quantity: </label>
           <input
             type="number"
             value={quantity}
@@ -212,8 +213,10 @@ function App() {
       {/* ---- Order Result ---- */}
       {error && <div style={{ color: 'red', marginBottom: '20px' }}>Error: {error}</div>}
       {result && (
-        <section style={{ border: '2px solid ' + (result.status === 'CONFIRMED' ? 'green' : 'red'),
-                          padding: '15px', borderRadius: '5px', marginBottom: '30px' }}>
+        <section style={{
+          border: '2px solid ' + (result.status === 'CONFIRMED' ? 'green' : 'red'),
+          padding: '15px', borderRadius: '5px', marginBottom: '30px'
+        }}>
           <h2>Order Result: {result.status}</h2>
           <p><strong>Reason:</strong> {result.reason}</p>
           {result.items && (

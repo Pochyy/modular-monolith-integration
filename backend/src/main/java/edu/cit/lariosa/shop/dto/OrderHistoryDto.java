@@ -54,3 +54,4 @@ public class OrderHistoryDto {
         public void setQuantity(int quantity) { this.quantity = quantity; }
     }
 }
+

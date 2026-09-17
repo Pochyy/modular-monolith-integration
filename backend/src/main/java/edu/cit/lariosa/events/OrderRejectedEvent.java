@@ -27,3 +27,4 @@ public class OrderRejectedEvent {
         public int getQuantity() { return quantity; }
     }
 }
+

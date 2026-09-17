@@ -15,3 +15,4 @@ public class LowStockEvent {
     public String getProductName() { return productName; }
     public int getRemainingStock() { return remainingStock; }
 }
+

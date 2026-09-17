@@ -8,3 +8,4 @@ public interface InventoryService {
     void restock(String productId, int quantity);
     List<Product> getAllItems();
 }
+

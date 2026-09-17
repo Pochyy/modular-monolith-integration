@@ -14,7 +14,6 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.stream.Collectors;
 
 @Service
 public class OrderService {
@@ -35,7 +34,6 @@ public class OrderService {
     public OrderResponse placeOrder(OrderRequest request) {
         List<OrderRequest.OrderItemRequest> requestItems = request.getItems();
 
-        // Phase 1: Validate ALL items before reserving ANY
         String rejectionReason = null;
         List<OrderResponse.OrderItemResponse> itemOutcomes = new ArrayList<>();
 
@@ -55,7 +53,6 @@ public class OrderService {
             }
         }
 
-        // If any item failed validation, reject the ENTIRE order
         if (rejectionReason != null) {
             Order order = new Order("REJECTED", rejectionReason);
             for (OrderRequest.OrderItemRequest item : requestItems) {
@@ -63,43 +60,39 @@ public class OrderService {
             }
             orderRepository.save(order);
 
-            // Build inventory snapshot for response
             List<InventoryDto> inventorySnapshot = buildInventorySnapshot(requestItems);
 
-            // Publish OrderRejected event
-            List<OrderRejectedEvent.Item> eventItems = requestItems.stream()
-                .map(i -> new OrderRejectedEvent.Item(i.getProductId(), i.getQuantity()))
-                .collect(Collectors.toList());
+            List<OrderRejectedEvent.Item> eventItems = new ArrayList<>();
+            for (OrderRequest.OrderItemRequest item : requestItems) {
+                eventItems.add(new OrderRejectedEvent.Item(item.getProductId(), item.getQuantity()));
+            }
             eventPublisher.publishEvent(new OrderRejectedEvent(rejectionReason, eventItems));
 
             return new OrderResponse(order.getOrderId(), "REJECTED", rejectionReason,
                     itemOutcomes, inventorySnapshot);
         }
 
-        // Phase 2: All items passed validation — reserve ALL
         for (OrderRequest.OrderItemRequest item : requestItems) {
             inventoryService.reserve(item.getProductId(), item.getQuantity());
         }
 
-        // Create and save the order with items
         Order order = new Order("CONFIRMED", "Order placed successfully");
         for (OrderRequest.OrderItemRequest item : requestItems) {
             order.addItem(new OrderItem(item.getProductId(), item.getQuantity()));
         }
         orderRepository.save(order);
 
-        // Build item outcomes as RESERVED
-        List<OrderResponse.OrderItemResponse> confirmedOutcomes = requestItems.stream()
-            .map(item -> new OrderResponse.OrderItemResponse(item.getProductId(), "RESERVED"))
-            .collect(Collectors.toList());
+        List<OrderResponse.OrderItemResponse> confirmedOutcomes = new ArrayList<>();
+        for (OrderRequest.OrderItemRequest item : requestItems) {
+            confirmedOutcomes.add(new OrderResponse.OrderItemResponse(item.getProductId(), "RESERVED"));
+        }
 
-        // Build inventory snapshot
         List<InventoryDto> inventorySnapshot = buildInventorySnapshot(requestItems);
 
-        // Publish OrderPlaced event
-        List<OrderPlacedEvent.Item> eventItems = requestItems.stream()
-            .map(i -> new OrderPlacedEvent.Item(i.getProductId(), i.getQuantity()))
-            .collect(Collectors.toList());
+        List<OrderPlacedEvent.Item> eventItems = new ArrayList<>();
+        for (OrderRequest.OrderItemRequest item : requestItems) {
+            eventItems.add(new OrderPlacedEvent.Item(item.getProductId(), item.getQuantity()));
+        }
         eventPublisher.publishEvent(new OrderPlacedEvent(order.getOrderId(), eventItems));
 
         return new OrderResponse(order.getOrderId(), "CONFIRMED", "Order placed successfully",
@@ -110,14 +103,13 @@ public class OrderService {
     public OrderResponse cancelOrder(Long orderId) {
         Order order = orderRepository.findById(orderId).orElse(null);
         if (order == null) {
-            return null; // Controller will return 404
+            return null;
         }
         if ("CANCELLED".equals(order.getStatus())) {
             return new OrderResponse(order.getOrderId(), "ALREADY_CANCELLED",
                     "Order is already cancelled", null, null);
         }
 
-        // Only restock if order was CONFIRMED (had reserved inventory)
         if ("CONFIRMED".equals(order.getStatus())) {
             for (OrderItem item : order.getItems()) {
                 inventoryService.restock(item.getProductId(), item.getQuantity());
@@ -137,9 +129,10 @@ public class OrderService {
             }
         }
 
-        List<OrderResponse.OrderItemResponse> itemOutcomes = order.getItems().stream()
-            .map(item -> new OrderResponse.OrderItemResponse(item.getProductId(), "RESTOCKED"))
-            .collect(Collectors.toList());
+        List<OrderResponse.OrderItemResponse> itemOutcomes = new ArrayList<>();
+        for (OrderItem item : order.getItems()) {
+            itemOutcomes.add(new OrderResponse.OrderItemResponse(item.getProductId(), "RESTOCKED"));
+        }
 
         return new OrderResponse(order.getOrderId(), "CANCELLED", "Order cancelled",
                 itemOutcomes, inventorySnapshot);
@@ -147,13 +140,16 @@ public class OrderService {
 
     public List<OrderHistoryDto> getAllOrders() {
         List<Order> orders = orderRepository.findAllByOrderByOrderIdDesc();
-        return orders.stream().map(order -> {
-            List<OrderHistoryDto.ItemDto> items = order.getItems().stream()
-                .map(item -> new OrderHistoryDto.ItemDto(item.getProductId(), item.getQuantity()))
-                .collect(Collectors.toList());
-            return new OrderHistoryDto(order.getOrderId(), order.getStatus(),
-                    order.getReason(), order.getCreatedAt(), items);
-        }).collect(Collectors.toList());
+        List<OrderHistoryDto> result = new ArrayList<>();
+        for (Order order : orders) {
+            List<OrderHistoryDto.ItemDto> items = new ArrayList<>();
+            for (OrderItem item : order.getItems()) {
+                items.add(new OrderHistoryDto.ItemDto(item.getProductId(), item.getQuantity()));
+            }
+            result.add(new OrderHistoryDto(order.getOrderId(), order.getStatus(),
+                    order.getReason(), order.getCreatedAt(), items));
+        }
+        return result;
     }
 
     private List<InventoryDto> buildInventorySnapshot(List<OrderRequest.OrderItemRequest> requestItems) {
