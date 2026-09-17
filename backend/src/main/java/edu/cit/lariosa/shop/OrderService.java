@@ -13,7 +13,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 @Service
 public class OrderService {
@@ -34,22 +36,31 @@ public class OrderService {
     public OrderResponse placeOrder(OrderRequest request) {
         List<OrderRequest.OrderItemRequest> requestItems = request.getItems();
 
+        // Aggregate quantities per product so duplicate line items can't
+        // each pass validation against the same unreserved stock figure.
+        Map<String, Integer> requestedQuantities = new LinkedHashMap<>();
+        for (OrderRequest.OrderItemRequest item : requestItems) {
+            requestedQuantities.merge(item.getProductId(), item.getQuantity(), Integer::sum);
+        }
+
         String rejectionReason = null;
         List<OrderResponse.OrderItemResponse> itemOutcomes = new ArrayList<>();
 
-        for (OrderRequest.OrderItemRequest item : requestItems) {
-            Product product = inventoryService.getItem(item.getProductId());
+        for (Map.Entry<String, Integer> entry : requestedQuantities.entrySet()) {
+            String productId = entry.getKey();
+            int quantity = entry.getValue();
+            Product product = inventoryService.getItem(productId);
             if (product == null) {
-                rejectionReason = "Product not found: " + item.getProductId();
-                itemOutcomes.add(new OrderResponse.OrderItemResponse(item.getProductId(), "PRODUCT_NOT_FOUND"));
-            } else if (item.getQuantity() <= 0) {
-                rejectionReason = "Invalid quantity for: " + item.getProductId();
-                itemOutcomes.add(new OrderResponse.OrderItemResponse(item.getProductId(), "INVALID_QUANTITY"));
-            } else if (product.getStock() < item.getQuantity()) {
-                rejectionReason = "Insufficient stock for: " + item.getProductId();
-                itemOutcomes.add(new OrderResponse.OrderItemResponse(item.getProductId(), "INSUFFICIENT_STOCK"));
+                rejectionReason = "Product not found: " + productId;
+                itemOutcomes.add(new OrderResponse.OrderItemResponse(productId, "PRODUCT_NOT_FOUND"));
+            } else if (quantity <= 0) {
+                rejectionReason = "Invalid quantity for: " + productId;
+                itemOutcomes.add(new OrderResponse.OrderItemResponse(productId, "INVALID_QUANTITY"));
+            } else if (product.getStock() < quantity) {
+                rejectionReason = "Insufficient stock for: " + productId;
+                itemOutcomes.add(new OrderResponse.OrderItemResponse(productId, "INSUFFICIENT_STOCK"));
             } else {
-                itemOutcomes.add(new OrderResponse.OrderItemResponse(item.getProductId(), "AVAILABLE"));
+                itemOutcomes.add(new OrderResponse.OrderItemResponse(productId, "AVAILABLE"));
             }
         }
 
@@ -72,8 +83,20 @@ public class OrderService {
                     itemOutcomes, inventorySnapshot);
         }
 
-        for (OrderRequest.OrderItemRequest item : requestItems) {
-            inventoryService.reserve(item.getProductId(), item.getQuantity());
+        // Reserve against the aggregated quantities, and verify every
+        // reservation actually succeeded — if validation and reality
+        // disagree, throw so @Transactional rolls back any partial reserves.
+        List<String> reserveFailures = new ArrayList<>();
+        for (Map.Entry<String, Integer> entry : requestedQuantities.entrySet()) {
+            boolean ok = inventoryService.reserve(entry.getKey(), entry.getValue());
+            if (!ok) {
+                reserveFailures.add(entry.getKey());
+            }
+        }
+        if (!reserveFailures.isEmpty()) {
+            throw new IllegalStateException(
+                    "Reservation failed after validation passed for: " + reserveFailures
+                            + " — likely a duplicate product ID or concurrent order. Rolling back.");
         }
 
         Order order = new Order("CONFIRMED", "Order placed successfully");
