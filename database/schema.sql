@@ -29,6 +29,19 @@ CREATE TABLE notifications (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
+CREATE TABLE supplier_orders (
+    id SERIAL PRIMARY KEY,
+    product_id VARCHAR(50) NOT NULL,
+    buyer_ref VARCHAR(80) NOT NULL UNIQUE,
+    request_id VARCHAR(80) NOT NULL UNIQUE,
+    po_number VARCHAR(50),
+    cases INT NOT NULL DEFAULT 0,
+    units INT NOT NULL DEFAULT 0,
+    status VARCHAR(50) NOT NULL DEFAULT 'PENDING',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
 INSERT INTO inventory (product_id, name, stock) VALUES
 ('P100', 'Wireless Mouse', 25),
 ('P200', 'Mechanical Keyboard', 10),

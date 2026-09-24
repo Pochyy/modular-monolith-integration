@@ -1,8 +1,10 @@
 package edu.cit.lariosa.inventory;
 
 import edu.cit.lariosa.events.LowStockEvent;
+import edu.cit.lariosa.events.SupplierDeliveryEvent;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -61,5 +63,11 @@ class InventoryServiceImpl implements InventoryService {
     @Override
     public List<Product> getAllItems() {
         return inventoryRepository.findAll();
+    }
+
+    @EventListener
+    @Transactional
+    public void handleSupplierDelivery(SupplierDeliveryEvent event) {
+        restock(event.getProductId(), event.getUnitsDelivered());
     }
 }

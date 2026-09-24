@@ -3,6 +3,7 @@ package edu.cit.lariosa.notification;
 import edu.cit.lariosa.events.LowStockEvent;
 import edu.cit.lariosa.events.OrderPlacedEvent;
 import edu.cit.lariosa.events.OrderRejectedEvent;
+import edu.cit.lariosa.events.SupplierDeliveryEvent;
 import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Service;
 
@@ -39,7 +40,14 @@ public class NotificationService {
     @EventListener
     public void handleLowStock(LowStockEvent event) {
         String message = "Low stock: " + event.getProductId() + " (" + event.getProductName()
-                + ") has " + event.getRemainingStock() + " units remaining. Reorder needed.";
+                + ") has " + event.getRemainingStock() + " units remaining. Auto-reorder initiated.";
+        notificationRepository.save(new Notification(message));
+    }
+
+    @EventListener
+    public void handleSupplierDelivery(SupplierDeliveryEvent event) {
+        String message = "Supplier delivery received: " + event.getUnitsDelivered()
+                + " units of " + event.getProductId() + " restocked.";
         notificationRepository.save(new Notification(message));
     }
 
@@ -47,4 +55,3 @@ public class NotificationService {
         return notificationRepository.findAllByOrderByCreatedAtDesc();
     }
 }
-
