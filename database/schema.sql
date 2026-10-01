@@ -46,3 +46,32 @@ INSERT INTO inventory (product_id, name, stock) VALUES
 ('P100', 'Wireless Mouse', 25),
 ('P200', 'Mechanical Keyboard', 10),
 ('P300', 'USB-C Hub', 0);
+
+CREATE TABLE tiangge_feed_cursors (
+    id SERIAL PRIMARY KEY,
+    cursor_value VARCHAR(255) NOT NULL
+);
+
+CREATE TABLE tiangge_orders (
+    tiangge_order_id VARCHAR(255) PRIMARY KEY,
+    event_id VARCHAR(255) NOT NULL UNIQUE,
+    placed_at TIMESTAMP WITH TIME ZONE NOT NULL,
+    decision_deadline TIMESTAMP WITH TIME ZONE NOT NULL,
+    status VARCHAR(50) NOT NULL,
+    shop_order_id VARCHAR(255),
+    reason TEXT,
+    sync_status VARCHAR(50) NOT NULL
+);
+
+CREATE TABLE tiangge_order_items (
+    item_id SERIAL PRIMARY KEY,
+    tiangge_order_id VARCHAR(255) NOT NULL REFERENCES tiangge_orders(tiangge_order_id),
+    seller_sku VARCHAR(255) NOT NULL,
+    quantity INT NOT NULL
+);
+
+CREATE TABLE tiangge_pending_stock (
+    seller_sku VARCHAR(255) PRIMARY KEY,
+    available_quantity INT NOT NULL,
+    last_updated TIMESTAMP WITH TIME ZONE
+);

@@ -14,9 +14,11 @@ class LegacySupplyAdapter implements SupplierGateway {
     private static final long RETRY_DELAY_MS = 1000;
 
     private final LegacySupplyClient client;
+    private final SupplierOrderRepository supplierOrderRepository;
 
-    LegacySupplyAdapter(LegacySupplyClient client) {
+    LegacySupplyAdapter(LegacySupplyClient client, SupplierOrderRepository supplierOrderRepository) {
         this.client = client;
+        this.supplierOrderRepository = supplierOrderRepository;
     }
 
     @Override
@@ -94,5 +96,22 @@ class LegacySupplyAdapter implements SupplierGateway {
                 log.warn("Unknown LegacySupply status code: {}", statusCode);
                 return SupplierOrderStatus.UNKNOWN;
         }
+    }
+
+    @Override
+    public boolean hasOpenOrder(String productId) {
+        java.util.List<SupplierOrderStatus> activeStatuses = java.util.Arrays.asList(
+                SupplierOrderStatus.PENDING,
+                SupplierOrderStatus.ACCEPTED,
+                SupplierOrderStatus.PROCESSING,
+                SupplierOrderStatus.SHIPPED
+        );
+        return supplierOrderRepository.findByProductIdAndStatusIn(productId, activeStatuses).isPresent();
+    }
+
+    @Override
+    public String getSupplierReference(String productId) {
+        ProductMapping mapping = ProductMapping.forProductId(productId);
+        return mapping != null ? mapping.getSupplierSku() : null;
     }
 }

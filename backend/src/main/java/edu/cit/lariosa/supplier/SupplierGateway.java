@@ -6,4 +6,6 @@ package edu.cit.lariosa.supplier;
 public interface SupplierGateway {
     SupplierOrderResult placeReorder(String productId, int unitsNeeded, Long supplierOrderId);
     SupplierOrderStatus checkOrderStatus(String poNumber);
+    boolean hasOpenOrder(String productId);
+    String getSupplierReference(String productId);
 }

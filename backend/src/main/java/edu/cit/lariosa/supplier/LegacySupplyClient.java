@@ -12,23 +12,30 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.time.Duration;
 
+import edu.cit.lariosa.config.InstanceIdentity;
+
 @Component
 class LegacySupplyClient {
 
     private static final Logger log = LoggerFactory.getLogger(LegacySupplyClient.class);
-    private static final String BASE_URL = "https://legacysupply.onrender.com/api/v1";
     private static final Duration TIMEOUT = Duration.ofSeconds(3);
 
+    private final String baseUrl;
     private final String clientId;
     private final String apiKey;
     private final HttpClient httpClient;
+    private final InstanceIdentity instanceIdentity;
 
     private volatile String sessionToken;
 
-    LegacySupplyClient(@Value("${supplier.client-id:21-0587-173}") String clientId,
-                       @Value("${LS_API_KEY:}") String apiKey) {
+    LegacySupplyClient(@Value("${legacysupply.base-url:https://legacysupply.onrender.com/api/v1}") String baseUrl,
+                       @Value("${supplier.client-id:21-0587-173}") String clientId,
+                       @Value("${LS_API_KEY:}") String apiKey,
+                       InstanceIdentity instanceIdentity) {
+        this.baseUrl = baseUrl;
         this.clientId = clientId;
         this.apiKey = apiKey;
+        this.instanceIdentity = instanceIdentity;
         this.httpClient = HttpClient.newBuilder()
                 .connectTimeout(TIMEOUT)
                 .build();
@@ -38,7 +45,7 @@ class LegacySupplyClient {
     synchronized String authenticate() throws IOException, InterruptedException {
         String body = "<AuthRequest><ClientId>" + clientId + "</ClientId><ApiKey>" + apiKey + "</ApiKey></AuthRequest>";
         HttpRequest request = HttpRequest.newBuilder()
-                .uri(URI.create(BASE_URL + "/auth/token"))
+                .uri(URI.create(baseUrl + "/auth/token"))
                 .header("Content-Type", "application/xml")
                 .timeout(TIMEOUT)
                 .POST(HttpRequest.BodyPublishers.ofString(body))
@@ -99,8 +106,9 @@ class LegacySupplyClient {
         for (int attempt = 0; attempt < 2; attempt++) {
             String token = ensureSession();
             HttpRequest.Builder reqBuilder = HttpRequest.newBuilder()
-                    .uri(URI.create(BASE_URL + path))
+                    .uri(URI.create(baseUrl + path))
                     .header("X-LS-Session", token)
+                    .header("X-Client-Instance", instanceIdentity.getId())
                     .timeout(TIMEOUT);
 
             if (requestId != null) {
