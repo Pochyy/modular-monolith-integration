@@ -11,3 +11,4 @@ target/
 *.log
 backend/apache-maven-3.9.6/
 backend/maven.zip
+backend/.jdk/
